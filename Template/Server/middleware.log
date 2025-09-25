@@ -1,0 +1,5 @@
+TCP Middleware started on port 17000
+Connecting to ResourceManagers:
+  Flight RM: localhost:18081
+  Car RM: localhost:18082
+  Room RM: localhost:18083
