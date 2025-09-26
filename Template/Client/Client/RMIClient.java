@@ -14,10 +14,11 @@ public class RMIClient extends Client
 {
 	private static String s_serverHost = "localhost";
         // recommended to hange port last digits to your group number
-	private static int s_serverPort = 3026;
+	private static int s_serverPort = 1099;
 	private static String s_serverName = "Server";
-	
-	private static String s_rmiPrefix = "group_26_";
+
+	//TODO: ADD YOUR GROUP NUMBER TO COMPILE
+	private static String s_rmiPrefix = "group_xx_";
 
 	public static void main(String args[])
 	{	

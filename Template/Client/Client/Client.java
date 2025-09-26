@@ -67,7 +67,7 @@ public abstract class Client
 		}
 	}
 
-	public void execute(Command cmd, Vector<String> arguments) throws RemoteException, NumberFormatException, IOException, ClassNotFoundException
+	public void execute(Command cmd, Vector<String> arguments) throws RemoteException, NumberFormatException
 	{
 		switch (cmd)
 		{

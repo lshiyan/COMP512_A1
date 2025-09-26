@@ -1,458 +1,241 @@
 package Client;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import Server.Interface.*;
+import Server.TCP.TCPMessage;
+import Server.TCP.TCPMessage.Command;
+import Server.TCP.TCPCommunicator;
+
+import java.io.*;
 import java.net.Socket;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
-import java.rmi.registry.LocateRegistry;
-import java.rmi.registry.Registry;
 import java.util.Vector;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.rmi.RemoteException;
 
-import Server.Interface.IResourceManager;
+public class TCPClient extends Client {
+    private static String s_serverHost = "localhost";
+    private static int s_serverPort = 17000; // Middleware port
 
-public class TCPClient extends Client
-{
+    private Socket socket;
+    private AtomicInteger messageIdCounter = new AtomicInteger(1);
 
-    private static String s_serverHost;
-	private static int s_serverPort = 3026;
-	private static String s_serverName;
-	
-	private Socket m_socket;
-	private ObjectOutputStream m_out;
-	private ObjectInputStream m_in;
+    public static void main(String args[]) {
+        if (args.length > 0) {
+            s_serverHost = args[0];
+        }
+        if (args.length > 1) {
+            try {
+                s_serverPort = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid port number: " + args[1]);
+                System.exit(1);
+            }
+        }
+        if (args.length > 2) {
+            System.err.println((char)27 + "[31;1mClient exception: " + (char)27 + "[0mUsage: java Client.TCPClient [server_hostname [server_port]]");
+            System.exit(1);
+        }
 
-    public TCPClient()
-    {
-        super();
+        try {
+            TCPClient client = new TCPClient();
+            client.connectServer();
+            client.start();
+        } catch (Exception e) {
+            System.err.println((char)27 + "[31;1mClient exception: " + (char)27 + "[0mUncaught exception");
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
-    public void connectServer()
-	{
-		connectServer(s_serverHost, s_serverPort, s_serverName);
-	}
-
-	@Override 
-	public void execute(Command cmd, Vector<String> arguments) throws IOException, ClassNotFoundException
-	{
-		switch (cmd)
-		{
-			case Help:
-			{
-				if (arguments.size() == 1) {
-					System.out.println(Command.description());
-				} else if (arguments.size() == 2) {
-					Command l_cmd = Command.fromString((String)arguments.elementAt(1));
-					System.out.println(l_cmd.toString());
-				} else {
-					System.err.println((char)27 + "[31;1mCommand exception: " + (char)27 + "[0mImproper use of help command. Location \"help\" or \"help,<CommandName>\"");
-				}
-				break;
-			}
-			case AddFlight: {
-				checkArgumentsCount(4, arguments.size());
-
-				System.out.println("Adding a new flight ");
-				System.out.println("-Flight Number: " + arguments.elementAt(1));
-				System.out.println("-Flight Seats: " + arguments.elementAt(2));
-				System.out.println("-Flight Price: " + arguments.elementAt(3));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Flight added");
-				} else {
-					System.out.println("Flight could not be added");
-				}
-				
-				break;
-			}
-			case AddCars: {
-				checkArgumentsCount(4, arguments.size());
-
-				System.out.println("Adding new cars");
-				System.out.println("-Car Location: " + arguments.elementAt(1));
-				System.out.println("-Number of Cars: " + arguments.elementAt(2));
-				System.out.println("-Car Price: " + arguments.elementAt(3));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Cars added");
-				} else {
-					System.out.println("Cars could not be added");
-				}
-
-				break;
-			}
-			case AddRooms: {
-				checkArgumentsCount(4, arguments.size());
-
-				System.out.println("Adding new rooms");
-				System.out.println("-Room Location: " + arguments.elementAt(1));
-				System.out.println("-Number of Rooms: " + arguments.elementAt(2));
-				System.out.println("-Room Price: " + arguments.elementAt(3));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-				
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Rooms added");
-				} else {
-					System.out.println("Rooms could not be added");
-				}
-				break;
-			}
-			case AddCustomer: {
-				checkArgumentsCount(1, arguments.size());
-
-				System.out.println("Adding a new customer:=");
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				System.out.println("New customer id: " + response.getReturn());
-				
-				break;
-			}
-			case AddCustomerID: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Adding a new customer");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Customer added with id:" + arguments.elementAt(1));
-				} else {
-					System.out.println("Customer could not be added");
-				}
-
-				break;
-			}
-			case DeleteFlight: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Deleting a flight");
-				System.out.println("-Flight Number: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Flight deleted");
-				} else {
-					System.out.println("Flight could not be deleted");
-				}
-
-				break;
-			}
-			case DeleteCars: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Deleting all cars at a particular location");
-				System.out.println("-Car Location: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Cars deleted");
-				} else {
-					System.out.println("Cars could not be deleted");
-				}
-
-				break;
-			}
-			case DeleteRooms: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Deleting all rooms at a particular location");
-				System.out.println("-Car Location: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){	
-					System.out.println("Rooms deleted");
-				} else {
-					System.out.println("Rooms could not be deleted");
-				}
-
-				break;
-			}
-			case DeleteCustomer: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Deleting a customer from the database");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Customer deleted");
-				} else {
-					System.out.println("Customer could not be deleted");
-				}
-
-				break;
-			}
-			case QueryFlight: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying a flight");
-				System.out.println("-Flight Number: " + arguments.elementAt(1));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				System.out.println("Number of seats available: " + response.getReturn());
-				break;
-			}
-			case QueryCars: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying cars location");
-				System.out.println("-Car Location: " + arguments.elementAt(1));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				System.out.println("Number of cars available: " + response.getReturn());
-
-				break;
-			}
-			case QueryRooms: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying rooms location");
-				System.out.println("-Room Location: " + arguments.elementAt(1));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				System.out.println("Number of rooms available: " + response.getReturn());
-
-				break;
-			}
-			case QueryCustomer: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying customer information");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				String bill = response.getReturn();
-				System.out.println(bill);
-
-				break;               
-			}
-			case QueryFlightPrice: {
-				checkArgumentsCount(2, arguments.size());
-				
-				System.out.println("Querying a flight price");
-				System.out.println("-Flight Number: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				int price = Integer.parseInt(response.getReturn());
-				System.out.println("Price of a seat: " + price);
-
-				break;
-			}
-			case QueryCarsPrice: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying cars price");
-				System.out.println("-Car Location: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				int price = Integer.parseInt(response.getReturn());
-				System.out.println("Price of cars at this location: " + price);
-
-				break;
-			}
-			case QueryRoomsPrice: {
-				checkArgumentsCount(2, arguments.size());
-
-				System.out.println("Querying rooms price");
-				System.out.println("-Room Location: " + arguments.elementAt(1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				int price = Integer.parseInt(response.getReturn());
-				System.out.println("Price of rooms at this location: " + price);
-
-				break;
-			}
-			case ReserveFlight: {
-				checkArgumentsCount(3, arguments.size());
-
-				System.out.println("Reserving seat in a flight");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				System.out.println("-Flight Number: " + arguments.elementAt(2));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Flight reserved");
-				} else {
-					System.out.println("Flight could not be reserved");
-				}
-
-				break;
-			}
-			case ReserveCar: {
-				checkArgumentsCount(3, arguments.size());
-
-				System.out.println("Reserving a car at a location");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				System.out.println("-Car Location: " + arguments.elementAt(2));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){	
-					System.out.println("Car reserved");
-				} else {
-					System.out.println("Car could not be reserved");
-				}
-
-				break;
-			}
-			case ReserveRoom: {
-				checkArgumentsCount(3, arguments.size());
-
-				System.out.println("Reserving a room at a location");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				System.out.println("-Room Location: " + arguments.elementAt(2));
-				
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Room reserved");
-				} else {
-					System.out.println("Room could not be reserved");
-				}
-
-				break;
-			}
-			case Bundle: {
-				if (arguments.size() < 6) {
-					System.err.println((char)27 + "[31;1mCommand exception: " + (char)27 + "[0mBundle command expects at least 6 arguments. Location \"help\" or \"help,<CommandName>\"");
-					break;
-				}
-
-				System.out.println("Reserving an bundle");
-				System.out.println("-Customer ID: " + arguments.elementAt(1));
-				for (int i = 0; i < arguments.size() - 5; ++i)
-				{
-					System.out.println("-Flight Number: " + arguments.elementAt(2+i));
-				}
-				System.out.println("-Location for Car/Room: " + arguments.elementAt(arguments.size()-3));
-				System.out.println("-Book Car: " + arguments.elementAt(arguments.size()-2));
-				System.out.println("-Book Room: " + arguments.elementAt(arguments.size()-1));
-
-				TCPCommandMessage message = new TCPCommandMessage(cmd, arguments);
-				sendMessage(message);
-
-				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
-					System.out.println("Bundle reserved");
-				} else {
-					System.out.println("Bundle could not be reserved");
-				}
-				break;
-			}
-			case Quit:
-				checkArgumentsCount(1, arguments.size());
-
-				System.out.println("Quitting client");
-				System.exit(0);
-		}
-		
-	}
-	
-	public void sendMessage(TCPCommandMessage message) throws IOException
-	{
-		m_out.writeObject(message);
-	}
-
-	public TCPCommandMessageResponse receiveResponse() throws IOException, ClassNotFoundException
-	{
-		return (TCPCommandMessageResponse) m_in.readObject();
-	}
-
-	public void connectServer(String server, int port, String name)
-	{
-		try {
-			m_socket = new Socket(server, port);
-			m_out = new ObjectOutputStream(m_socket.getOutputStream());
-			m_in = new ObjectInputStream(m_socket.getInputStream());
-			System.out.println("Connected to server " + server + " on port " + port);
-		}
-		catch (Exception e) {
-			System.err.println((char)27 + "[31;1mServer exception: " + (char)27 + "[0mUncaught exception");
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
-
-    public static void main(String args[])
-	{	
-		if (args.length > 0)
-		{
-			s_serverHost = args[0];
-		}
-
-		if (args.length > 1)
-		{
-			s_serverName = args[1];
-		}
-
-		try {
-			TCPClient client = new TCPClient();
-			client.connectServer();
-			client.start();
-		} 
-		catch (Exception e) {    
-			System.err.println((char)27 + "[31;1mClient exception: " + (char)27 + "[0mUncaught exception");
-			e.printStackTrace();
-			System.exit(1);
-		}
-	}
+    public TCPClient() {
+        super();
+        // Create a TCP-based ResourceManager proxy
+        m_resourceManager = new TCPResourceManagerProxy();
+    }
+
+    @Override
+    public void connectServer() {
+        connectServer(s_serverHost, s_serverPort);
+    }
+
+    public void connectServer(String server, int port) {
+        try {
+            boolean first = true;
+            while (true) {
+                try {
+                    if (socket != null && !socket.isClosed()) {
+                        socket.close();
+                    }
+                    socket = new Socket(server, port);
+                    System.out.println("Connected to Middleware server [" + server + ":" + port + "]");
+                    break;
+                } catch (IOException e) {
+                    if (first) {
+                        System.out.println("Waiting for Middleware server [" + server + ":" + port + "]");
+                        first = false;
+                    }
+                    Thread.sleep(500);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println((char)27 + "[31;1mServer exception: " + (char)27 + "[0mUncaught exception");
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    /**
+     * TCP-based ResourceManager proxy
+     * Converts method calls to TCP messages
+     */
+    private class TCPResourceManagerProxy implements IResourceManager {
+
+        private TCPMessage sendRequest(Command command, Object... args) throws RemoteException {
+            try {
+                int messageId = messageIdCounter.getAndIncrement();
+                TCPMessage request = new TCPMessage(messageId, command, args);
+
+                // Send request
+                TCPCommunicator.sendMessage(socket, request);
+
+                // Receive response
+                TCPMessage response = TCPCommunicator.receiveMessage(socket);
+
+                // Check for errors
+                if (response.getMessageType() == TCPMessage.MessageType.ERROR) {
+                    throw new RemoteException("Server error: " + response.getErrorMessage());
+                }
+
+                return response;
+
+            } catch (IOException | ClassNotFoundException e) {
+                throw new RemoteException("Communication error: " + e.getMessage(), e);
+            }
+        }
+
+        @Override
+        public boolean addFlight(int flightNum, int flightSeats, int flightPrice) throws RemoteException {
+            TCPMessage response = sendRequest(Command.ADD_FLIGHT, flightNum, flightSeats, flightPrice);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean addCars(String location, int numCars, int price) throws RemoteException {
+            TCPMessage response = sendRequest(Command.ADD_CARS, location, numCars, price);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean addRooms(String location, int numRooms, int price) throws RemoteException {
+            TCPMessage response = sendRequest(Command.ADD_ROOMS, location, numRooms, price);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public int newCustomer() throws RemoteException {
+            TCPMessage response = sendRequest(Command.NEW_CUSTOMER);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public boolean newCustomer(int cid) throws RemoteException {
+            TCPMessage response = sendRequest(Command.NEW_CUSTOMER_ID, cid);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean deleteFlight(int flightNum) throws RemoteException {
+            TCPMessage response = sendRequest(Command.DELETE_FLIGHT, flightNum);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean deleteCars(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.DELETE_CARS, location);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean deleteRooms(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.DELETE_ROOMS, location);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean deleteCustomer(int customerID) throws RemoteException {
+            TCPMessage response = sendRequest(Command.DELETE_CUSTOMER, customerID);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public int queryFlight(int flightNumber) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_FLIGHT, flightNumber);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public int queryCars(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_CARS, location);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public int queryRooms(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_ROOMS, location);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public String queryCustomerInfo(int customerID) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_CUSTOMER, customerID);
+            return (String) response.getResult();
+        }
+
+        @Override
+        public int queryFlightPrice(int flightNumber) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_FLIGHT_PRICE, flightNumber);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public int queryCarsPrice(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_CARS_PRICE, location);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public int queryRoomsPrice(String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.QUERY_ROOMS_PRICE, location);
+            return (Integer) response.getResult();
+        }
+
+        @Override
+        public boolean reserveFlight(int customerID, int flightNumber) throws RemoteException {
+            TCPMessage response = sendRequest(Command.RESERVE_FLIGHT, customerID, flightNumber);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean reserveCar(int customerID, String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.RESERVE_CAR, customerID, location);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean reserveRoom(int customerID, String location) throws RemoteException {
+            TCPMessage response = sendRequest(Command.RESERVE_ROOM, customerID, location);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public boolean bundle(int customerID, Vector<String> flightNumbers, String location, boolean car, boolean room) throws RemoteException {
+            TCPMessage response = sendRequest(Command.BUNDLE, customerID, flightNumbers, location, car, room);
+            return (Boolean) response.getResult();
+        }
+
+        @Override
+        public String getName() throws RemoteException {
+            TCPMessage response = sendRequest(Command.GET_NAME);
+            return (String) response.getResult();
+        }
+    }
 }

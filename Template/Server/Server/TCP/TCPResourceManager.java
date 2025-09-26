@@ -1,216 +1,240 @@
 package Server.TCP;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.rmi.RemoteException;
-import java.util.Vector;
-
-import Client.Command;
-import Client.TCPCommandMessage;
-import Client.TCPCommandMessageResponse;
 import Server.Common.*;
+import Server.TCP.TCPMessage.Command;
 
+import java.io.*;
+import java.net.*;
+import java.util.Vector;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+/**
+ * TCP-based ResourceManager server
+ * Handles multiple concurrent client connections using thread pool
+ */
 public class TCPResourceManager extends ResourceManager {
-    
-    private static int s_serverPort = 3026;
+    private static final int DEFAULT_PORT = 18080;
+    private ServerSocket serverSocket;
+    private ExecutorService threadPool;
+    private boolean running = false;
+    private int port;
 
-    private ObjectInputStream m_in;
-    private ObjectOutputStream m_out;
-
-    public TCPResourceManager(String p_name) {
-        super(p_name);
+    public TCPResourceManager(String name, int port) {
+        super(name);
+        this.port = port;
+        this.threadPool = Executors.newCachedThreadPool(); // Dynamic thread pool
     }
 
-    public static void main(String[] args) throws IOException{
+    /**
+     * Start the TCP server
+     */
+    public void startServer() {
+        try {
+            serverSocket = new ServerSocket(port);
+            running = true;
+            System.out.println("'" + m_name + "' TCP ResourceManager server started on port " + port);
 
-        String serverName = "";
+            // Accept client connections
+            while (running) {
+                try {
+                    Socket clientSocket = serverSocket.accept();
+                    System.out.println("New client connected: " + clientSocket.getRemoteSocketAddress());
+                    threadPool.submit(new ClientHandler(clientSocket));
+
+                } catch (SocketException e) {
+                    if (running) {
+                        System.err.println("Socket error accepting connections: " + e.getMessage());
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error accepting client connection: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to start server on port " + port + ": " + e.getMessage());
+            System.exit(1);
+        }
+    }
+
+    /**
+     * Shutdown the server
+     */
+    public void shutdown() {
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+            threadPool.shutdown();
+            System.out.println("'" + m_name + "' server shutdown");
+        } catch (IOException e) {
+            System.err.println("Error during server shutdown: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Inner class to handle individual client connections
+     */
+    private class ClientHandler implements Runnable {
+        private Socket clientSocket;
+
+        public ClientHandler(Socket clientSocket) {
+            this.clientSocket = clientSocket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                System.out.println("Handling client: " + clientSocket.getRemoteSocketAddress());
+
+                while (!clientSocket.isClosed()) {
+                    try {
+                        // Receive request message
+                        TCPMessage request = TCPCommunicator.receiveMessage(clientSocket);
+                        System.out.println("Received: " + request);
+
+                        // Process the request and send response bcack
+                        TCPMessage response = processRequest(request);
+                        TCPCommunicator.sendMessage(clientSocket, response);
+
+                    } catch (EOFException | SocketException e) {
+                        // Client disconnected
+                        System.out.println("Client disconnected: " + clientSocket.getRemoteSocketAddress());
+                        break;
+                    } catch (ClassNotFoundException e) {
+                        System.err.println("Invalid message format from client: " + e.getMessage());
+                        break;
+                    } catch (IOException e) {
+                        System.err.println("Communication error with client: " + e.getMessage());
+                        break;
+                    }
+                }
+            } finally {
+                TCPCommunicator.closeSocket(clientSocket);
+                System.out.println("Client handler finished for: " + clientSocket.getRemoteSocketAddress());
+            }
+        }
+    }
+
+    /**
+     * Process a request message and return appropriate response
+     */
+    private TCPMessage processRequest(TCPMessage request) {
+        try {
+            Object result = executeCommand(request.getCommand(), request.getArguments());
+            return new TCPMessage(request.getMessageId(), result);
+
+        } catch (Exception e) {
+            System.err.println("Error processing request " + request.getCommand() + ": " + e.getMessage());
+            return new TCPMessage(request.getMessageId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Execute ResourceManager commands based on TCP message
+     */
+    @SuppressWarnings("unchecked")
+    private Object executeCommand(Command command, Object[] args) throws Exception {
+        switch (command) {
+            case ADD_FLIGHT:
+                return addFlight((Integer) args[0], (Integer) args[1], (Integer) args[2]);
+
+            case ADD_CARS:
+                return addCars((String) args[0], (Integer) args[1], (Integer) args[2]);
+
+            case ADD_ROOMS:
+                return addRooms((String) args[0], (Integer) args[1], (Integer) args[2]);
+
+            case NEW_CUSTOMER:
+                if (args.length == 0) {
+                    return newCustomer();
+                } else {
+                    return newCustomer((Integer) args[0]);
+                }
+
+            case NEW_CUSTOMER_ID:
+                return newCustomer((Integer) args[0]);
+
+            case DELETE_FLIGHT:
+                return deleteFlight((Integer) args[0]);
+
+            case DELETE_CARS:
+                return deleteCars((String) args[0]);
+
+            case DELETE_ROOMS:
+                return deleteRooms((String) args[0]);
+
+            case DELETE_CUSTOMER:
+                return deleteCustomer((Integer) args[0]);
+
+            case QUERY_FLIGHT:
+                return queryFlight((Integer) args[0]);
+
+            case QUERY_CARS:
+                return queryCars((String) args[0]);
+
+            case QUERY_ROOMS:
+                return queryRooms((String) args[0]);
+
+            case QUERY_CUSTOMER:
+                return queryCustomerInfo((Integer) args[0]);
+
+            case QUERY_FLIGHT_PRICE:
+                return queryFlightPrice((Integer) args[0]);
+
+            case QUERY_CARS_PRICE:
+                return queryCarsPrice((String) args[0]);
+
+            case QUERY_ROOMS_PRICE:
+                return queryRoomsPrice((String) args[0]);
+
+            case RESERVE_FLIGHT:
+                return reserveFlight((Integer) args[0], (Integer) args[1]);
+
+            case RESERVE_CAR:
+                return reserveCar((Integer) args[0], (String) args[1]);
+
+            case RESERVE_ROOM:
+                return reserveRoom((Integer) args[0], (String) args[1]);
+
+            case BUNDLE:
+                return bundle((Integer) args[0], (Vector<String>) args[1],
+                            (String) args[2], (Boolean) args[3], (Boolean) args[4]);
+
+            case GET_NAME:
+                return getName();
+
+            default:
+                throw new UnsupportedOperationException("Command not supported: " + command);
+        }
+    }
+
+    /**
+     * Main method to start TCP ResourceManager server
+     */
+    public static void main(String[] args) {
+        String serverName = "Server";
+        int port = DEFAULT_PORT;
+
         if (args.length > 0) {
             serverName = args[0];
         }
-        
-        TCPResourceManager server = new TCPResourceManager(serverName);
-        
-        ServerSocket serverSocket = new ServerSocket(s_serverPort);
-
-        Socket clientSocket = serverSocket.accept();
-
-        server.m_in = new ObjectInputStream(clientSocket.getInputStream());
-        server.m_out = new ObjectOutputStream(clientSocket.getOutputStream());
-
-        while (true) {
+        if (args.length > 1) {
             try {
-                TCPCommandMessage message = (TCPCommandMessage) server.m_in.readObject();
-                TCPCommandMessageResponse response = server.processRequest(message);
-                
-                server.m_out.writeObject(response);
-                server.m_out.flush();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-    }
-
-    private TCPCommandMessageResponse processRequest(TCPCommandMessage message) throws RemoteException {
-        Command command = message.getCommand();
-        Vector<String> args = message.getCommandArgs();
-
-        TCPCommandMessageResponse resp = null;
-        switch(command){
-
-            case Command.AddFlight: {
-                int flightNum = Integer.parseInt(args.get(0));
-                int flightSeats = Integer.parseInt(args.get(1));
-                int flightPrice = Integer.parseInt(args.get(2));
-                boolean result = addFlight(flightNum, flightSeats, flightPrice);
-
-                resp = new TCPCommandMessageResponse(Command.AddFlight, String.valueOf(result));
-            }
-
-            case Command.AddCars: {
-                String location = args.get(0);
-                int count = Integer.parseInt(args.get(1));
-                int price = Integer.parseInt(args.get(2));
-                boolean result = addCars(location, count, price);
-
-                resp = new TCPCommandMessageResponse(Command.AddCars, String.valueOf(result));
-            }
-
-            case Command.AddRooms: {
-                String location = args.get(0);
-                int count = Integer.parseInt(args.get(1));
-                int price = Integer.parseInt(args.get(2));
-
-                boolean result = addRooms(location, count, price);
-
-                resp = new TCPCommandMessageResponse(Command.AddRooms, String.valueOf(result));
-            }
-
-            case Command.AddCustomer:{
-                int cid = newCustomer();
-
-                resp = new TCPCommandMessageResponse(Command.AddCustomer, String.valueOf(cid));
-            }
-
-            case Command.AddCustomerID:{
-                int cid = Integer.parseInt(args.get(0));
-                boolean result = newCustomer(cid);
-
-                resp = new TCPCommandMessageResponse(Command.AddCustomerID, String.valueOf(result));
-            }
-
-            case Command.DeleteFlight:{
-                int flightNum = Integer.parseInt(args.get(0));
-                boolean result = deleteFlight(flightNum);
-
-                resp = new TCPCommandMessageResponse(Command.DeleteFlight, String.valueOf(result));
-            }
-
-            case Command.DeleteCars:{
-                String location = args.get(0);
-                boolean result = deleteCars(location);
-
-                resp = new TCPCommandMessageResponse(Command.DeleteCars, String.valueOf(result));
-            }
-
-            case Command.DeleteRooms:{
-                String location = args.get(0);  
-                boolean result = deleteRooms(location);
-
-                resp = new TCPCommandMessageResponse(Command.DeleteRooms, String.valueOf(result));
-            } 
-
-            case Command.DeleteCustomer:{
-                int cid = Integer.parseInt(args.get(0));
-                boolean result = deleteCustomer(cid);
-
-                resp = new TCPCommandMessageResponse(Command.DeleteCustomer, String.valueOf(result));
-            }
-
-            case Command.QueryFlight:{
-                int flightNum = Integer.parseInt(args.get(0));
-                int seats = queryFlight(flightNum);
-
-                resp = new TCPCommandMessageResponse(Command.QueryFlight, String.valueOf(seats));
-            }
-
-            case Command.QueryCars:{
-                String location = args.get(0);
-                int numCars = queryCars(location); 
-
-                resp = new TCPCommandMessageResponse(Command.QueryCars, String.valueOf(numCars));
-            }
-
-            case Command.QueryRooms:{
-                String location = args.get(0);
-                int numRooms = queryRooms(location); 
-
-                resp = new TCPCommandMessageResponse(Command.QueryRooms, String.valueOf(numRooms));
-            }
-
-            case Command.QueryCustomer:{
-                int cid = Integer.parseInt(args.get(0));
-                String bill = queryCustomerInfo(cid);
-
-                resp = new TCPCommandMessageResponse(Command.QueryCustomer, bill);
-            }
-
-            case Command.QueryFlightPrice:{
-                int flightNum = Integer.parseInt(args.get(0));
-                int price = queryFlightPrice(flightNum);
-
-                resp = new TCPCommandMessageResponse(Command.QueryFlightPrice, String.valueOf(price));
-            }   
-
-            case Command.QueryCarsPrice:{
-                String location = args.get(0);
-                int price = queryCarsPrice(location); 
-
-                resp = new TCPCommandMessageResponse(Command.QueryCarsPrice, String.valueOf(price));
-            }   
-
-            case Command.QueryRoomsPrice:{
-                String location = args.get(0);
-                int price = queryRoomsPrice(location);  
-
-                resp = new TCPCommandMessageResponse(Command.QueryRoomsPrice, String.valueOf(price));
-            }
-
-            case Command.ReserveFlight:{
-                int cid = Integer.parseInt(args.get(0));
-                int flightNum = Integer.parseInt(args.get(1));
-                boolean result = reserveFlight(cid, flightNum);
-
-                resp = new TCPCommandMessageResponse(Command.ReserveFlight, String.valueOf(result));
-            }
-
-            case Command.ReserveCar:{
-                int cid = Integer.parseInt(args.get(0));
-                String location = args.get(1);
-                boolean result = reserveCar(cid, location);
-
-                resp = new TCPCommandMessageResponse(Command.ReserveCar, String.valueOf(result));
-            }
-
-            case Command.ReserveRoom:{
-                int cid = Integer.parseInt(args.get(0));
-                String location = args.get(1);
-                boolean result = reserveRoom(cid, location);  
-                
-                resp = new TCPCommandMessageResponse(Command.ReserveRoom, String.valueOf(result));
-            }
-
-            default: {
-                resp = null;
+                port = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid port number: " + args[1]);
+                System.exit(1);
             }
         }
 
-        return resp;
+        // Create and start the TCP ResourceManager
+        TCPResourceManager server = new TCPResourceManager(serverName, port);
+
+        // Shutdown hook for graceful shutdown
+        Runtime.getRuntime().addShutdownHook(new Thread(server::shutdown));
+
+        // Start the server (this blocks)
+        server.startServer();
     }
 }
-
