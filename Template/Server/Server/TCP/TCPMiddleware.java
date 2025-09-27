@@ -20,7 +20,11 @@ public class TCPMiddleware {
     private static final int FLIGHT_RM_PORT = 18081;
     private static final int CAR_RM_PORT = 18082;
     private static final int ROOM_RM_PORT = 18083;
-    private static final String RM_HOST = "localhost";
+
+    // Configurable RM hosts for distributed deployment
+    private String flightRMHost;
+    private String carRMHost;
+    private String roomRMHost;
 
     private ServerSocket clientServerSocket;
     private ExecutorService clientThreadPool;
@@ -38,7 +42,14 @@ public class TCPMiddleware {
     private int nextCustomerId = 1000;
 
     public TCPMiddleware(int clientPort) {
+        this(clientPort, "localhost", "localhost", "localhost");
+    }
+
+    public TCPMiddleware(int clientPort, String flightHost, String carHost, String roomHost) {
         this.clientPort = clientPort;
+        this.flightRMHost = flightHost;
+        this.carRMHost = carHost;
+        this.roomRMHost = roomHost;
         this.clientThreadPool = Executors.newCachedThreadPool();
         this.rmThreadPool = Executors.newCachedThreadPool();
         this.pendingRequests = new ConcurrentHashMap<>();
@@ -68,9 +79,9 @@ public class TCPMiddleware {
             running = true;
             System.out.println("TCP Middleware started on port " + clientPort);
             System.out.println("Connecting to ResourceManagers:");
-            System.out.println("  Flight RM: " + RM_HOST + ":" + FLIGHT_RM_PORT);
-            System.out.println("  Car RM: " + RM_HOST + ":" + CAR_RM_PORT);
-            System.out.println("  Room RM: " + RM_HOST + ":" + ROOM_RM_PORT);
+            System.out.println("  Flight RM: " + flightRMHost + ":" + FLIGHT_RM_PORT);
+            System.out.println("  Car RM: " + carRMHost + ":" + CAR_RM_PORT);
+            System.out.println("  Room RM: " + roomRMHost + ":" + ROOM_RM_PORT);
 
             // Accept client connections
             while (running) {
@@ -104,7 +115,8 @@ public class TCPMiddleware {
 
         if (connection == null || connection.isClosed()) {
             int port = getPortForRM(rmType);
-            connection = new Socket(RM_HOST, port);
+            String host = getHostForRM(rmType);
+            connection = new Socket(host, port);
             System.out.println("Created new connection to " + rmType + " RM");
         }
 
@@ -128,6 +140,15 @@ public class TCPMiddleware {
             case "flight": return FLIGHT_RM_PORT;
             case "car": return CAR_RM_PORT;
             case "room": return ROOM_RM_PORT;
+            default: throw new IllegalArgumentException("Unknown RM type: " + rmType);
+        }
+    }
+
+    private String getHostForRM(String rmType) {
+        switch (rmType) {
+            case "flight": return flightRMHost;
+            case "car": return carRMHost;
+            case "room": return roomRMHost;
             default: throw new IllegalArgumentException("Unknown RM type: " + rmType);
         }
     }
@@ -384,6 +405,9 @@ public class TCPMiddleware {
      */
     public static void main(String[] args) {
         int port = DEFAULT_CLIENT_PORT;
+        String flightHost = "localhost";
+        String carHost = "localhost";
+        String roomHost = "localhost";
 
         if (args.length > 0) {
             try {
@@ -394,7 +418,25 @@ public class TCPMiddleware {
             }
         }
 
-        TCPMiddleware middleware = new TCPMiddleware(port);
+        if (args.length > 1) {
+            flightHost = args[1];
+        }
+
+        if (args.length > 2) {
+            carHost = args[2];
+        }
+
+        if (args.length > 3) {
+            roomHost = args[3];
+        }
+
+        System.out.println("Starting TCP Middleware with configuration:");
+        System.out.println("  Client port: " + port);
+        System.out.println("  Flight RM: " + flightHost + ":18081");
+        System.out.println("  Car RM: " + carHost + ":18082");
+        System.out.println("  Room RM: " + roomHost + ":18083");
+
+        TCPMiddleware middleware = new TCPMiddleware(port, flightHost, carHost, roomHost);
 
         // Shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(middleware::shutdown));
