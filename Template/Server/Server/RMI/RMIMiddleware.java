@@ -8,6 +8,9 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Calendar;
 import java.util.Vector;
 
+import Server.Common.Car;
+import Server.Common.Flight;
+import Server.Common.Room;
 import Server.Interface.IResourceManager;
 
 public class RMIMiddleware implements IResourceManager {
@@ -120,27 +123,51 @@ public class RMIMiddleware implements IResourceManager {
 
     public boolean bundle(int customerID, Vector<String> flightNumbers, String location, boolean car, boolean room) throws RemoteException{
 
+        String customerInfo = queryCustomerInfo(customerID);
+
+        if (customerInfo == "") {
+            System.out.println("Bundle failed, customer with ID" + customerID + "doesn't exist.");
+            return false;
+        }
+
         for (String flightNum : flightNumbers) {
-            if (!reserveFlight(customerID, Integer.parseInt(flightNum))) {
-                System.out.println("Failed to reserve flight " + flightNum + " for customer " + customerID);
+            int numSeats = queryFlight(Integer.parseInt(flightNum));
+            if (numSeats == 0){
+                System.out.println("Bundle failed, no seats for flight with ID:" + flightNum);
                 return false;
             }
+        }
+
+        if (car){
+            int numCars = queryCars(location);
+            if (numCars == 0){
+                System.out.println("Bundle failed, no available cars at location:" + location);
+                return false;
+            }
+        }
+
+        if (room){
+            int numRooms = queryRooms(location);
+            if (numRooms == 0){
+                System.out.println("Bundle failed, no available rooms at location:" + location);
+                return false;
+            }
+        }
+
+        System.out.println("Bundle succeeded, reserving...");
+
+        for (String flightNum : flightNumbers) {
+            m_rmFlight.reserveFlight(customerID, Integer.parseInt(flightNum));
         }
 
         if (car) {
-            if (!reserveCar(customerID, location)) {
-                System.out.println("Failed to reserve car at " + location + " for customer " + customerID);
-                return false;
-            }
+            m_rmCar.reserveCar(customerID, location);
         }
 
         if (room) {
-            System.out.println("Reserving room at " + location + " for customer " + customerID);
-            if (!reserveRoom(customerID, location)) {
-                return false;
-            }
+            m_rmRoom.reserveRoom(customerID, location);
         }
-
+    
         return true;
     }
 
