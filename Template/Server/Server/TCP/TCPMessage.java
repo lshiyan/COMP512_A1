@@ -1,20 +1,13 @@
 package Server.TCP;
-
 import java.io.Serializable;
-import java.util.Vector;
 
-/**
- * TCP Message class for client-server communication
- */
 public class TCPMessage implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // Message types
     public enum MessageType {
         REQUEST, RESPONSE, ERROR
     }
-
-    // Command types matching IResourceManager interface
+    
     public enum Command {
         ADD_FLIGHT, ADD_CARS, ADD_ROOMS,
         NEW_CUSTOMER, NEW_CUSTOMER_ID,
@@ -32,7 +25,7 @@ public class TCPMessage implements Serializable {
     private String errorMessage;
     private int messageId;
 
-    // Constructor for requests
+    // requests
     public TCPMessage(int messageId, Command command, Object... arguments) {
         this.messageId = messageId;
         this.messageType = MessageType.REQUEST;
@@ -40,21 +33,21 @@ public class TCPMessage implements Serializable {
         this.arguments = arguments;
     }
 
-    // Constructor for successful responses
+    // successful responses
     public TCPMessage(int messageId, Object result) {
         this.messageId = messageId;
         this.messageType = MessageType.RESPONSE;
         this.result = result;
     }
 
-    // Constructor for error responses
+    // error responses
     public TCPMessage(int messageId, String errorMessage) {
         this.messageId = messageId;
         this.messageType = MessageType.ERROR;
         this.errorMessage = errorMessage;
     }
 
-    // Getters and setters
+    // getters and setters
     public MessageType getMessageType() { return messageType; }
     public Command getCommand() { return command; }
     public Object[] getArguments() { return arguments; }

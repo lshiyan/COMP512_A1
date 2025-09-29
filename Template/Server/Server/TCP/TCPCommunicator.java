@@ -4,25 +4,18 @@ import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 
-/**
- * Utility class for TCP message communication
- * Handles serialization, framing, and socket I/O
- */
+/* Handles serialization, framing, and socket */
 public class TCPCommunicator {
-
-    /**
-     * Send a TCPMessage over a socket
-     */
     public static void sendMessage(Socket socket, TCPMessage message) throws IOException {
         try {
-            // Serialize the message
+            // Serialize message
             ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
             ObjectOutputStream objectStream = new ObjectOutputStream(byteStream);
             objectStream.writeObject(message);
             objectStream.flush();
             byte[] messageBytes = byteStream.toByteArray();
 
-            // Send length-prefixed message
+            // Send message
             DataOutputStream out = new DataOutputStream(socket.getOutputStream());
             out.writeInt(messageBytes.length);
             out.write(messageBytes);
@@ -36,21 +29,17 @@ public class TCPCommunicator {
         }
     }
 
-    /**
-     * Receive a TCPMessage from a socket
-     */
+
     public static TCPMessage receiveMessage(Socket socket) throws IOException, ClassNotFoundException {
         try {
             DataInputStream in = new DataInputStream(socket.getInputStream());
 
-            // Read message length first
-            int messageLength = in.readInt();
 
-            // Read exact message bytes
+            int messageLength = in.readInt();
             byte[] messageBytes = new byte[messageLength];
             in.readFully(messageBytes);
 
-            // Deserialize the message
+            // Deserialize message
             ByteArrayInputStream byteStream = new ByteArrayInputStream(messageBytes);
             ObjectInputStream objectStream = new ObjectInputStream(byteStream);
             TCPMessage message = (TCPMessage) objectStream.readObject();
@@ -64,9 +53,6 @@ public class TCPCommunicator {
         }
     }
 
-    /**
-     * Safe close of socket
-     */
     public static void closeSocket(Socket socket) {
         if (socket != null && !socket.isClosed()) {
             try {

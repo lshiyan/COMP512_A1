@@ -13,7 +13,7 @@ import java.rmi.RemoteException;
 
 public class TCPClient extends Client {
     private static String s_serverHost = "localhost";
-    private static int s_serverPort = 17000; // Middleware port
+    private static int s_serverPort = 17000;
 
     private Socket socket;
     private AtomicInteger messageIdCounter = new AtomicInteger(1);
@@ -31,7 +31,7 @@ public class TCPClient extends Client {
             }
         }
         if (args.length > 2) {
-            System.err.println((char)27 + "[31;1mClient exception: " + (char)27 + "[0mUsage: java Client.TCPClient [server_hostname [server_port]]");
+            System.err.println("error");
             System.exit(1);
         }
 
@@ -40,7 +40,7 @@ public class TCPClient extends Client {
             client.connectServer();
             client.start();
         } catch (Exception e) {
-            System.err.println((char)27 + "[31;1mClient exception: " + (char)27 + "[0mUncaught exception");
+            System.err.println("error");
             e.printStackTrace();
             System.exit(1);
         }
@@ -48,7 +48,6 @@ public class TCPClient extends Client {
 
     public TCPClient() {
         super();
-        // Create a TCP-based ResourceManager proxy
         m_resourceManager = new TCPResourceManagerProxy();
     }
 
@@ -77,16 +76,13 @@ public class TCPClient extends Client {
                 }
             }
         } catch (Exception e) {
-            System.err.println((char)27 + "[31;1mServer exception: " + (char)27 + "[0mUncaught exception");
+            System.err.println("error");
             e.printStackTrace();
             System.exit(1);
         }
     }
 
-    /**
-     * TCP-based ResourceManager proxy
-     * Converts method calls to TCP messages
-     */
+
     private class TCPResourceManagerProxy implements IResourceManager {
 
         private TCPMessage sendRequest(Command command, Object... args) throws RemoteException {
@@ -94,13 +90,9 @@ public class TCPClient extends Client {
                 int messageId = messageIdCounter.getAndIncrement();
                 TCPMessage request = new TCPMessage(messageId, command, args);
 
-                // Send request
+      
                 TCPCommunicator.sendMessage(socket, request);
-
-                // Receive response
                 TCPMessage response = TCPCommunicator.receiveMessage(socket);
-
-                // Check for errors
                 if (response.getMessageType() == TCPMessage.MessageType.ERROR) {
                     throw new RemoteException("Server error: " + response.getErrorMessage());
                 }

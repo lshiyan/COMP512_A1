@@ -5,14 +5,10 @@ import Server.TCP.TCPMessage.Command;
 
 import java.io.*;
 import java.net.*;
-import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * TCP-based ResourceManager server
- * Handles multiple concurrent client connections using thread pool
- */
+/* Handles multiple concurrent client connections using thread pool */
 public class TCPResourceManager extends ResourceManager {
     private static final int DEFAULT_PORT = 18080;
     private ServerSocket serverSocket;
@@ -23,23 +19,19 @@ public class TCPResourceManager extends ResourceManager {
     public TCPResourceManager(String name, int port) {
         super(name);
         this.port = port;
-        this.threadPool = Executors.newCachedThreadPool(); // Dynamic thread pool
+        this.threadPool = Executors.newCachedThreadPool();
     }
 
-    /**
-     * Start the TCP server
-     */
     public void startServer() {
         try {
             serverSocket = new ServerSocket(port);
             running = true;
             System.out.println("'" + m_name + "' TCP ResourceManager server started on port " + port);
 
-            // Accept client connections
             while (running) {
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    System.out.println("New client connected: " + clientSocket.getRemoteSocketAddress());
+                    System.out.println("New connection from: " + clientSocket.getRemoteSocketAddress());
                     threadPool.submit(new ClientHandler(clientSocket));
 
                 } catch (SocketException e) {
@@ -56,9 +48,6 @@ public class TCPResourceManager extends ResourceManager {
         }
     }
 
-    /**
-     * Shutdown the server
-     */
     public void shutdown() {
         running = false;
         try {
@@ -66,15 +55,11 @@ public class TCPResourceManager extends ResourceManager {
                 serverSocket.close();
             }
             threadPool.shutdown();
-            System.out.println("'" + m_name + "' server shutdown");
         } catch (IOException e) {
             System.err.println("Error during server shutdown: " + e.getMessage());
         }
     }
 
-    /**
-     * Inner class to handle individual client connections
-     */
     private class ClientHandler implements Runnable {
         private Socket clientSocket;
 
@@ -85,20 +70,19 @@ public class TCPResourceManager extends ResourceManager {
         @Override
         public void run() {
             try {
-                System.out.println("Handling client: " + clientSocket.getRemoteSocketAddress());
+                System.out.println("Handling connection: " + clientSocket.getRemoteSocketAddress());
 
                 while (!clientSocket.isClosed()) {
                     try {
-                        // Receive request message
                         TCPMessage request = TCPCommunicator.receiveMessage(clientSocket);
                         System.out.println("Received: " + request);
 
-                        // Process the request and send response bcack
                         TCPMessage response = processRequest(request);
                         TCPCommunicator.sendMessage(clientSocket, response);
 
+                        System.out.println("Response sent to middleware: " + response);
+
                     } catch (EOFException | SocketException e) {
-                        // Client disconnected
                         System.out.println("Client disconnected: " + clientSocket.getRemoteSocketAddress());
                         break;
                     } catch (ClassNotFoundException e) {
@@ -116,9 +100,6 @@ public class TCPResourceManager extends ResourceManager {
         }
     }
 
-    /**
-     * Process a request message and return appropriate response
-     */
     private TCPMessage processRequest(TCPMessage request) {
         try {
             Object result = executeCommand(request.getCommand(), request.getArguments());
@@ -130,9 +111,6 @@ public class TCPResourceManager extends ResourceManager {
         }
     }
 
-    /**
-     * Execute ResourceManager commands based on TCP message
-     */
     @SuppressWarnings("unchecked")
     private Object executeCommand(Command command, Object[] args) throws Exception {
         switch (command) {
@@ -146,11 +124,7 @@ public class TCPResourceManager extends ResourceManager {
                 return addRooms((String) args[0], (Integer) args[1], (Integer) args[2]);
 
             case NEW_CUSTOMER:
-                if (args.length == 0) {
-                    return newCustomer();
-                } else {
-                    return newCustomer((Integer) args[0]);
-                }
+                return newCustomer();
 
             case NEW_CUSTOMER_ID:
                 return newCustomer((Integer) args[0]);
@@ -197,9 +171,6 @@ public class TCPResourceManager extends ResourceManager {
             case RESERVE_ROOM:
                 return reserveRoom((Integer) args[0], (String) args[1]);
 
-            case BUNDLE:
-                return bundle((Integer) args[0], (Vector<String>) args[1],
-                            (String) args[2], (Boolean) args[3], (Boolean) args[4]);
 
             case GET_NAME:
                 return getName();
@@ -209,9 +180,6 @@ public class TCPResourceManager extends ResourceManager {
         }
     }
 
-    /**
-     * Main method to start TCP ResourceManager server
-     */
     public static void main(String[] args) {
         String serverName = "Server";
         int port = DEFAULT_PORT;
@@ -228,13 +196,9 @@ public class TCPResourceManager extends ResourceManager {
             }
         }
 
-        // Create and start the TCP ResourceManager
+
         TCPResourceManager server = new TCPResourceManager(serverName, port);
-
-        // Shutdown hook for graceful shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(server::shutdown));
-
-        // Start the server (this blocks)
         server.startServer();
     }
 }
