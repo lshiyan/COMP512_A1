@@ -148,22 +148,43 @@ public class TCPMiddlewareThread extends Thread{
                         writeToStream(m_clientOutputStream, overall_response);
                     }
                     else if (msg_command == Command.QueryCustomer){
+
+                        String flight_bill = "";
+                        String car_bill = "";
+                        String room_bill = "";
+
                         writeToStream(m_flightOutputStream, message);
 
                         TCPCommandMessageResponse flight_response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
-                        String flight_bill = "Flight " + flight_response.getReturn();
+                        String flight_return = flight_response.getReturn();
+                        
+                        if (!flight_return.equals("")){
+                            flight_bill = "Flight " + flight_return;
+                        }
 
                         writeToStream(m_carOutputStream, message);
 
                         TCPCommandMessageResponse car_response = (TCPCommandMessageResponse) m_carInputStream.readObject();
-                        String car_bill = "Car " + car_response.getReturn();
+                        String car_return = car_response.getReturn();
+                        
+                        if (!car_return.equals("")){
+                            car_bill = "Car " + car_return;
+                        }
 
                         writeToStream(m_roomOutputStream, message);
 
                         TCPCommandMessageResponse room_response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
-                        String room_bill = "Room " + room_response.getReturn();
+                        String room_return = room_response.getReturn();
+                        
+                        if (!room_return.equals("")){
+                            room_bill = "Car " + room_return;
+                        }
                         
                         String overall_bill = flight_bill + car_bill + room_bill;
+
+                        if (overall_bill.equals("")){
+                            overall_bill = "Customer does not exist.";
+                        }
 
                         TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, overall_bill);
                         
