@@ -151,17 +151,17 @@ public class TCPMiddlewareThread extends Thread{
                         writeToStream(m_flightOutputStream, message);
 
                         TCPCommandMessageResponse flight_response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
-                        String flight_bill = "Flight" + flight_response.getReturn();
+                        String flight_bill = "Flight " + flight_response.getReturn();
 
                         writeToStream(m_carOutputStream, message);
 
                         TCPCommandMessageResponse car_response = (TCPCommandMessageResponse) m_carInputStream.readObject();
-                        String car_bill = "Car" + car_response.getReturn();
+                        String car_bill = "Car " + car_response.getReturn();
 
                         writeToStream(m_roomOutputStream, message);
 
                         TCPCommandMessageResponse room_response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
-                        String room_bill = "Room" + room_response.getReturn();
+                        String room_bill = "Room " + room_response.getReturn();
                         
                         String overall_bill = flight_bill + car_bill + room_bill;
 
