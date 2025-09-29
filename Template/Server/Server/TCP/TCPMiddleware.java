@@ -52,13 +52,18 @@ public class TCPMiddleware{
     }
 
     public void runConnectionThreads() throws IOException {
-        ServerSocket serverSocket = new ServerSocket(s_serverPort);
-        System.out.println("Listening on port " + s_serverPort);
-        while (true) {
-            Socket clientSocket = serverSocket.accept();
-            System.out.println("Accepted connection from " + clientSocket.getInetAddress());
-            TCPConnectionThread connectionThread = new TCPConnectionThread(clientSocket, s_flight_ipadd, s_car_ipadd, s_room_ipadd);
-            connectionThread.start();
+
+        try(ServerSocket serverSocket = new ServerSocket(s_serverPort)){
+            System.out.println("Listening on port " + s_serverPort);
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Accepted connection from " + clientSocket.getInetAddress());
+                TCPMiddlewareThread connectionThread = new TCPMiddlewareThread(clientSocket, s_flight_ipadd, s_car_ipadd, s_room_ipadd);
+                connectionThread.start();
+            }
+        }
+        catch(Exception e){
+            e.printStackTrace();
         }
     }
 }

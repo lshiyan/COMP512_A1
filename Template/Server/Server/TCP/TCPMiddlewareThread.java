@@ -13,7 +13,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 
 import Client.Command;
 
-public class TCPConnectionThread extends Thread{
+public class TCPMiddlewareThread extends Thread{
     
     private Socket m_clientsocket;
     private Socket m_flightSocket;
@@ -40,7 +40,7 @@ public class TCPConnectionThread extends Thread{
     
     private static Set<Command> s_aggregateCommands = Set.of(Command.AddCustomer, Command.AddCustomerID, Command.DeleteCustomer, Command.QueryCustomer, Command.Bundle);
 
-    public TCPConnectionThread( Socket p_clientsocket, InetAddress p_flight_ipadd, InetAddress p_car_ipadd, InetAddress p_room_ipadd) throws IOException{
+    public TCPMiddlewareThread( Socket p_clientsocket, InetAddress p_flight_ipadd, InetAddress p_car_ipadd, InetAddress p_room_ipadd) throws IOException{
         m_clientsocket = p_clientsocket;
         m_flightSocket = new Socket(p_flight_ipadd, s_serverPort);
         m_carSocket = new Socket(p_car_ipadd, s_serverPort);

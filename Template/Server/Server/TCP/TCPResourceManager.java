@@ -31,27 +31,33 @@ public class TCPResourceManager extends ResourceManager {
         
         TCPResourceManager server = new TCPResourceManager(serverName);
         
-        ServerSocket serverSocket = new ServerSocket(s_serverPort);
+        try(ServerSocket serverSocket = new ServerSocket(s_serverPort)){
 
-        Socket middlewareSocket = serverSocket.accept();
+            while (true) {
+                Socket middlewareSocket = serverSocket.accept();
+                System.out.println("Accepted connection from " + middlewareSocket);
 
-        server.m_out = new ObjectOutputStream(middlewareSocket.getOutputStream());
-        server.m_out.flush();
-        server.m_in = new ObjectInputStream(middlewareSocket.getInputStream());
+                new Thread(() -> {
+                    try {
+                        ObjectOutputStream out = new ObjectOutputStream(middlewareSocket.getOutputStream());
+                        out.flush();
+                        ObjectInputStream in = new ObjectInputStream(middlewareSocket.getInputStream());
 
-        while (true) {
-            try {
-                TCPCommandMessage message = (TCPCommandMessage) server.m_in.readObject();
-                TCPCommandMessageResponse response = server.processRequest(message);
-                
-                server.m_out.writeObject(response);
-                server.m_out.flush();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-                break;
+                        while (true) {
+                            TCPCommandMessage message = (TCPCommandMessage) in.readObject();
+                            TCPCommandMessageResponse response = server.processRequest(message);
+
+                            out.writeObject(response);
+                            out.flush();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }).start();
             }
+        }
+        catch (Exception e){
+            e.printStackTrace();
         }
     }
 
