@@ -129,7 +129,7 @@ public abstract class Client
 				System.out.println("-Number of Rooms: " + arguments.elementAt(2));
 				System.out.println("-Room Price: " + arguments.elementAt(3));
 
-	       			String location = arguments.elementAt(1);
+	       		String location = arguments.elementAt(1);
 				int numRooms = toInt(arguments.elementAt(2));
 				int price = toInt(arguments.elementAt(3));
 

@@ -9,8 +9,6 @@ import java.rmi.RemoteException;
 import java.util.Vector;
 
 import Client.Command;
-import Client.TCPCommandMessage;
-import Client.TCPCommandMessageResponse;
 import Server.Common.*;
 
 public class TCPResourceManager extends ResourceManager {
@@ -35,10 +33,11 @@ public class TCPResourceManager extends ResourceManager {
         
         ServerSocket serverSocket = new ServerSocket(s_serverPort);
 
-        Socket clientSocket = serverSocket.accept();
+        Socket middlewareSocket = serverSocket.accept();
 
-        server.m_in = new ObjectInputStream(clientSocket.getInputStream());
-        server.m_out = new ObjectOutputStream(clientSocket.getOutputStream());
+        server.m_out = new ObjectOutputStream(middlewareSocket.getOutputStream());
+        server.m_out.flush();
+        server.m_in = new ObjectInputStream(middlewareSocket.getInputStream());
 
         while (true) {
             try {
@@ -64,152 +63,173 @@ public class TCPResourceManager extends ResourceManager {
         switch(command){
 
             case Command.AddFlight: {
-                int flightNum = Integer.parseInt(args.get(0));
-                int flightSeats = Integer.parseInt(args.get(1));
-                int flightPrice = Integer.parseInt(args.get(2));
+                int flightNum = Integer.parseInt(args.get(1));
+                int flightSeats = Integer.parseInt(args.get(2));
+                int flightPrice = Integer.parseInt(args.get(3));
                 boolean result = addFlight(flightNum, flightSeats, flightPrice);
 
                 resp = new TCPCommandMessageResponse(Command.AddFlight, String.valueOf(result));
+                break;
             }
 
             case Command.AddCars: {
-                String location = args.get(0);
-                int count = Integer.parseInt(args.get(1));
-                int price = Integer.parseInt(args.get(2));
+                String location = args.get(1);
+                int count = Integer.parseInt(args.get(2));
+                int price = Integer.parseInt(args.get(3));
                 boolean result = addCars(location, count, price);
 
                 resp = new TCPCommandMessageResponse(Command.AddCars, String.valueOf(result));
+                break;
             }
 
             case Command.AddRooms: {
-                String location = args.get(0);
-                int count = Integer.parseInt(args.get(1));
-                int price = Integer.parseInt(args.get(2));
+                String location = args.get(1);
+                int count = Integer.parseInt(args.get(2));
+                int price = Integer.parseInt(args.get(3));
 
                 boolean result = addRooms(location, count, price);
 
                 resp = new TCPCommandMessageResponse(Command.AddRooms, String.valueOf(result));
+                break;
             }
 
             case Command.AddCustomer:{
                 int cid = newCustomer();
 
                 resp = new TCPCommandMessageResponse(Command.AddCustomer, String.valueOf(cid));
+                break;
             }
 
             case Command.AddCustomerID:{
-                int cid = Integer.parseInt(args.get(0));
+                int cid = Integer.parseInt(args.get(1));
                 boolean result = newCustomer(cid);
 
                 resp = new TCPCommandMessageResponse(Command.AddCustomerID, String.valueOf(result));
+                break;
             }
 
             case Command.DeleteFlight:{
-                int flightNum = Integer.parseInt(args.get(0));
+                int flightNum = Integer.parseInt(args.get(1));
                 boolean result = deleteFlight(flightNum);
 
                 resp = new TCPCommandMessageResponse(Command.DeleteFlight, String.valueOf(result));
+                break;
             }
 
             case Command.DeleteCars:{
-                String location = args.get(0);
+                String location = args.get(1);
                 boolean result = deleteCars(location);
 
                 resp = new TCPCommandMessageResponse(Command.DeleteCars, String.valueOf(result));
+                break;
             }
 
             case Command.DeleteRooms:{
-                String location = args.get(0);  
+                String location = args.get(1);  
                 boolean result = deleteRooms(location);
 
                 resp = new TCPCommandMessageResponse(Command.DeleteRooms, String.valueOf(result));
+                break;
             } 
 
             case Command.DeleteCustomer:{
-                int cid = Integer.parseInt(args.get(0));
+                int cid = Integer.parseInt(args.get(1));
                 boolean result = deleteCustomer(cid);
 
                 resp = new TCPCommandMessageResponse(Command.DeleteCustomer, String.valueOf(result));
+                break;
             }
 
             case Command.QueryFlight:{
-                int flightNum = Integer.parseInt(args.get(0));
+                int flightNum = Integer.parseInt(args.get(1));
                 int seats = queryFlight(flightNum);
 
                 resp = new TCPCommandMessageResponse(Command.QueryFlight, String.valueOf(seats));
+                break;
             }
 
             case Command.QueryCars:{
-                String location = args.get(0);
+                String location = args.get(1);
                 int numCars = queryCars(location); 
 
                 resp = new TCPCommandMessageResponse(Command.QueryCars, String.valueOf(numCars));
+                break;
             }
 
             case Command.QueryRooms:{
-                String location = args.get(0);
+                String location = args.get(1);
                 int numRooms = queryRooms(location); 
 
                 resp = new TCPCommandMessageResponse(Command.QueryRooms, String.valueOf(numRooms));
+                break;
             }
 
             case Command.QueryCustomer:{
-                int cid = Integer.parseInt(args.get(0));
+                int cid = Integer.parseInt(args.get(1));
                 String bill = queryCustomerInfo(cid);
 
                 resp = new TCPCommandMessageResponse(Command.QueryCustomer, bill);
+                break;
             }
 
             case Command.QueryFlightPrice:{
-                int flightNum = Integer.parseInt(args.get(0));
+                int flightNum = Integer.parseInt(args.get(1));
                 int price = queryFlightPrice(flightNum);
 
                 resp = new TCPCommandMessageResponse(Command.QueryFlightPrice, String.valueOf(price));
+                break;
             }   
 
             case Command.QueryCarsPrice:{
-                String location = args.get(0);
+                String location = args.get(1);
                 int price = queryCarsPrice(location); 
 
                 resp = new TCPCommandMessageResponse(Command.QueryCarsPrice, String.valueOf(price));
+                break;
             }   
 
             case Command.QueryRoomsPrice:{
-                String location = args.get(0);
+                String location = args.get(1);
                 int price = queryRoomsPrice(location);  
 
                 resp = new TCPCommandMessageResponse(Command.QueryRoomsPrice, String.valueOf(price));
+                break;
             }
 
             case Command.ReserveFlight:{
-                int cid = Integer.parseInt(args.get(0));
-                int flightNum = Integer.parseInt(args.get(1));
+                int cid = Integer.parseInt(args.get(1));
+                int flightNum = Integer.parseInt(args.get(2));
                 boolean result = reserveFlight(cid, flightNum);
 
                 resp = new TCPCommandMessageResponse(Command.ReserveFlight, String.valueOf(result));
+                break;
             }
 
             case Command.ReserveCar:{
-                int cid = Integer.parseInt(args.get(0));
-                String location = args.get(1);
+                int cid = Integer.parseInt(args.get(1));
+                String location = args.get(2);
                 boolean result = reserveCar(cid, location);
 
                 resp = new TCPCommandMessageResponse(Command.ReserveCar, String.valueOf(result));
+                break;
             }
 
             case Command.ReserveRoom:{
-                int cid = Integer.parseInt(args.get(0));
-                String location = args.get(1);
+                int cid = Integer.parseInt(args.get(1));
+                String location = args.get(2);
                 boolean result = reserveRoom(cid, location);  
                 
                 resp = new TCPCommandMessageResponse(Command.ReserveRoom, String.valueOf(result));
+                break;
             }
 
             default: {
                 resp = null;
+                break;
             }
         }
 
+        System.out.println("Response message return:" + resp.getReturn());
         return resp;
     }
 }

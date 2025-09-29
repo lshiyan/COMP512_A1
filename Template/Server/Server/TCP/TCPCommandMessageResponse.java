@@ -1,6 +1,10 @@
-package Client;
+package Server.TCP;
 
-public class TCPCommandMessageResponse {
+import java.io.Serializable;
+
+import Client.Command;
+
+public class TCPCommandMessageResponse implements Serializable{
     
     private Command m_command;
     private String m_return;

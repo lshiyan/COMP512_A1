@@ -1,7 +1,9 @@
-package Client;
+package Server.TCP;
 
 import java.io.Serializable;
 import java.util.Vector;
+
+import Client.Command;
 
 public class TCPCommandMessage implements Serializable{
 	

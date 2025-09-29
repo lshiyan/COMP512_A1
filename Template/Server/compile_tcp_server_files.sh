@@ -1,0 +1,1 @@
+javac -d ../bin -cp ../bin Server/TCP/*.java Server/Common/*.java Server/Interface/*.java

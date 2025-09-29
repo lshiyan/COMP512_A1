@@ -12,6 +12,8 @@ import java.rmi.registry.Registry;
 import java.util.Vector;
 
 import Server.Interface.IResourceManager;
+import Server.TCP.TCPCommandMessage;
+import Server.TCP.TCPCommandMessageResponse;
 
 public class TCPClient extends Client
 {
@@ -63,7 +65,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Flight added");
 				} else {
 					System.out.println("Flight could not be added");
@@ -83,7 +85,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Cars added");
 				} else {
 					System.out.println("Cars could not be added");
@@ -103,7 +105,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 				
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Rooms added");
 				} else {
 					System.out.println("Rooms could not be added");
@@ -133,7 +135,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Customer added with id:" + arguments.elementAt(1));
 				} else {
 					System.out.println("Customer could not be added");
@@ -151,7 +153,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Flight deleted");
 				} else {
 					System.out.println("Flight could not be deleted");
@@ -169,7 +171,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Cars deleted");
 				} else {
 					System.out.println("Cars could not be deleted");
@@ -187,7 +189,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){	
+				if (response.getReturn().equals("true")){	
 					System.out.println("Rooms deleted");
 				} else {
 					System.out.println("Rooms could not be deleted");
@@ -205,7 +207,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Customer deleted");
 				} else {
 					System.out.println("Customer could not be deleted");
@@ -325,7 +327,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Flight reserved");
 				} else {
 					System.out.println("Flight could not be reserved");
@@ -344,7 +346,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){	
+				if (response.getReturn().equals("true")){	
 					System.out.println("Car reserved");
 				} else {
 					System.out.println("Car could not be reserved");
@@ -363,7 +365,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Room reserved");
 				} else {
 					System.out.println("Room could not be reserved");
@@ -391,7 +393,7 @@ public class TCPClient extends Client
 				sendMessage(message);
 
 				TCPCommandMessageResponse response = receiveResponse();
-				if (response.getReturn() == "true"){
+				if (response.getReturn().equals("true")){
 					System.out.println("Bundle reserved");
 				} else {
 					System.out.println("Bundle could not be reserved");
@@ -410,6 +412,7 @@ public class TCPClient extends Client
 	public void sendMessage(TCPCommandMessage message) throws IOException
 	{
 		m_out.writeObject(message);
+		m_out.flush();
 	}
 
 	public TCPCommandMessageResponse receiveResponse() throws IOException, ClassNotFoundException
@@ -422,6 +425,7 @@ public class TCPClient extends Client
 		try {
 			m_socket = new Socket(server, port);
 			m_out = new ObjectOutputStream(m_socket.getOutputStream());
+			m_out.flush();
 			m_in = new ObjectInputStream(m_socket.getInputStream());
 			System.out.println("Connected to server " + server + " on port " + port);
 		}

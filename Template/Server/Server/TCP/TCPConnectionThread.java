@@ -6,13 +6,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Calendar;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import Client.Command;
-import Client.TCPCommandMessage;
-import Client.TCPCommandMessageResponse;
 
 public class TCPConnectionThread extends Thread{
     
@@ -48,9 +47,13 @@ public class TCPConnectionThread extends Thread{
         m_roomSocket = new Socket(p_room_ipadd, s_serverPort);
 
         m_clientOutputStream = new ObjectOutputStream(m_clientsocket.getOutputStream());
+        m_clientOutputStream.flush();
         m_flightOutputStream = new ObjectOutputStream(m_flightSocket.getOutputStream());
+        m_flightOutputStream.flush();
         m_carOutputStream = new ObjectOutputStream(m_carSocket.getOutputStream());
+        m_carOutputStream.flush();
         m_roomOutputStream = new ObjectOutputStream(m_roomSocket.getOutputStream());
+        m_roomOutputStream.flush();
 
         m_clientInputStream = new ObjectInputStream(m_clientsocket.getInputStream());
         m_flightInputStream = new ObjectInputStream(m_flightSocket.getInputStream());
@@ -71,7 +74,6 @@ public class TCPConnectionThread extends Thread{
                     writeToStream(m_flightOutputStream, message);
 
                     TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
-
                     writeToStream(m_clientOutputStream, response);
                 }
                 else if (s_carCommands.contains(msg_command)){
@@ -92,24 +94,30 @@ public class TCPConnectionThread extends Thread{
                 else if (s_aggregateCommands.contains(msg_command)){
 
                     if (msg_command == Command.AddCustomer){
-                        writeToStream(m_flightOutputStream, message);
+                        int cid = Integer.parseInt(String.valueOf(Calendar.getInstance().get(Calendar.MILLISECOND)) + String.valueOf(Math.round(Math.random() * 100 + 1)));
+
+                        Vector<String> args = new Vector<String>();
+                        args.add("AddCustomerID");
+                        args.add(String.valueOf(cid));
+
+                        TCPCommandMessage newCustomerMessage = new TCPCommandMessage(Command.AddCustomerID, args);
+                        writeToStream(m_flightOutputStream, newCustomerMessage);
 
                         TCPCommandMessageResponse flight_response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
-                        String flight_customerID = flight_response.getReturn();
+                        String flight_success = flight_response.getReturn();
 
-                        writeToStream(m_carOutputStream, message);
+                        writeToStream(m_carOutputStream, newCustomerMessage);
 
                         TCPCommandMessageResponse car_response = (TCPCommandMessageResponse) m_carInputStream.readObject();
-                        String car_customerID = car_response.getReturn();
+                        String car_success = car_response.getReturn();
 
-                        writeToStream(m_roomOutputStream, message);
+                        writeToStream(m_roomOutputStream, newCustomerMessage);
 
                         TCPCommandMessageResponse room_response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
-
-                        String room_customerID = room_response.getReturn();
+                        String room_success = room_response.getReturn();
                         
-                        if (flight_customerID == car_customerID && car_customerID == room_customerID){
-                            TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, flight_customerID);
+                        if (flight_success.equals("true") && car_success.equals("true") && room_success.equals("true")){
+                            TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, String.valueOf(cid));
                             writeToStream(m_clientOutputStream, overall_response);
                         }
                         else{
@@ -145,88 +153,91 @@ public class TCPConnectionThread extends Thread{
                         TCPCommandMessageResponse flight_response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
                         String flight_bill = flight_response.getReturn();
 
+                        System.out.println(flight_bill);
                         writeToStream(m_carOutputStream, message);
 
                         TCPCommandMessageResponse car_response = (TCPCommandMessageResponse) m_carInputStream.readObject();
                         String car_bill = car_response.getReturn();
 
+                        System.out.println(car_bill);
                         writeToStream(m_roomOutputStream, message);
 
                         TCPCommandMessageResponse room_response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
                         String room_bill = room_response.getReturn();
                         
+                        System.out.println(room_bill);
                         String overall_bill = flight_bill + car_bill + room_bill;
 
+                        System.out.println(overall_bill);
                         TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, overall_bill);
                         
                         writeToStream(m_clientOutputStream, overall_response);
                     }
                     else if (msg_command == Command.Bundle){
                         Vector<String> args = message.getCommandArgs();
-                        int customerID = Integer.parseInt(args.elementAt(0));
+                        int customerID = Integer.parseInt(args.elementAt(1));
                         Vector<String> flightNumbers = new Vector<String>();
-                        for (int i = 1; i < args.size() - 5; i++){
-                            flightNumbers.add(args.elementAt(2+i));
+                        for (int i = 2; i < args.size() - 3; i++){
+                            flightNumbers.add(args.elementAt(i));
                         }
                         String location = args.elementAt(args.size() - 3);
                         boolean car = Boolean.valueOf(args.elementAt(args.size() - 2));
                         boolean room = Boolean.valueOf(args.elementAt(args.size() - 1));
-                        
 
-                        boolean flights_reserved_success = true;
-                        boolean cars_reserved_success = true;
-                        boolean rooms_reserved_success = true;
+                        if (!canBundle(customerID, flightNumbers, location, car, room)){
+                            boolean overall_success = false;
 
-                        for (String flightNum : flightNumbers) {
-                            Vector<String> flight_args_vector = new Vector<String>();
-                            flight_args_vector.add(flightNum);
-                            TCPCommandMessage flight_message = new TCPCommandMessage(Command.ReserveFlight, flight_args_vector);
-
-                            writeToStream(m_flightOutputStream, flight_message);
-
-                            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
-
-                            if (response.getReturn() != "true"){
-                                flights_reserved_success = false;
-                                break;
-                            }
+                            TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, String.valueOf(overall_success));
+                            
+                            writeToStream(m_clientOutputStream, overall_response);
                         }
+                        else{
 
-                        if (car) {
-                            Vector<String> car_args_vector = new Vector<String>();
-                            car_args_vector.add(String.valueOf(customerID));
-                            car_args_vector.add(location);
-                            TCPCommandMessage car_message = new TCPCommandMessage(Command.ReserveCar, car_args_vector);
+                            for (String flightNum : flightNumbers) {
+                                Vector<String> flight_args_vector = new Vector<String>();
+                                flight_args_vector.add("ReserveFlight");
+                                flight_args_vector.add(String.valueOf(customerID));
+                                flight_args_vector.add(flightNum);
+                                TCPCommandMessage flight_message = new TCPCommandMessage(Command.ReserveFlight, flight_args_vector);
 
-                            writeToStream(m_carOutputStream, car_message);
-
-                            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_carInputStream.readObject();
-
-                            if (response.getReturn() != "true"){
-                                cars_reserved_success = false;
+                                writeToStream(m_flightOutputStream, flight_message);
+                                
+                                //Have to clear the response.
+                                m_flightInputStream.readObject();
                             }
-                        }
 
-                        if (room) {
-                            Vector<String> room_args_vector = new Vector<String>();
-                            room_args_vector.add(String.valueOf(customerID));
-                            room_args_vector.add(location);
-                            TCPCommandMessage room_message = new TCPCommandMessage(Command.ReserveCar, room_args_vector);
+                            if (car) {
+                                Vector<String> car_args_vector = new Vector<String>();
+                                car_args_vector.add("ReserveCar");
+                                car_args_vector.add(String.valueOf(customerID));
+                                car_args_vector.add(location);
+                                TCPCommandMessage car_message = new TCPCommandMessage(Command.ReserveCar, car_args_vector);
 
-                            writeToStream(m_roomOutputStream, room_message);
+                                writeToStream(m_carOutputStream, car_message);
 
-                            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
-
-                            if (response.getReturn() != "true"){
-                                cars_reserved_success = false;
+                                //Have to clear the response.
+                                m_carInputStream.readObject();
                             }
+
+                            if (room) {
+                                Vector<String> room_args_vector = new Vector<String>();
+                                room_args_vector.add("ReserveRoom");
+                                room_args_vector.add(String.valueOf(customerID));
+                                room_args_vector.add(location);
+                                TCPCommandMessage room_message = new TCPCommandMessage(Command.ReserveRoom, room_args_vector);
+
+                                writeToStream(m_roomOutputStream, room_message);
+                                
+                                //Have to clear the response.
+                                m_roomInputStream.readObject();
+                            }
+
+                            boolean overall_success = true;
+
+                            TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, String.valueOf(overall_success));
+                            
+                            writeToStream(m_clientOutputStream, overall_response);
                         }
-
-                        boolean overall_success = flights_reserved_success && cars_reserved_success && rooms_reserved_success;
-
-                        TCPCommandMessageResponse overall_response = new TCPCommandMessageResponse(msg_command, String.valueOf(overall_success));
-                        
-                        writeToStream(m_clientOutputStream, overall_response);
                     } 
                 }
             }
@@ -235,6 +246,77 @@ public class TCPConnectionThread extends Thread{
             e.printStackTrace();
         }
     }
+
+    private boolean canBundle(int customerID, Vector<String> flightNumbers, String location, boolean car, boolean room) throws IOException, ClassNotFoundException{
+
+        Vector<String> cust_args = new Vector<>();
+        cust_args.add("QueryCustomer");
+        cust_args.add(String.valueOf(customerID));
+
+        TCPCommandMessage query_customer = new TCPCommandMessage(Command.QueryCustomer, cust_args);
+        writeToStream(m_flightOutputStream, query_customer);
+
+        TCPCommandMessageResponse cust_response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
+
+        String customerInfo = cust_response.getReturn();
+        if (customerInfo.equals("")) {
+             System.out.println("Bundle failed, customer with ID" + customerID + "doesn't exist.");
+            return false;
+        }
+
+        for (String flightNum : flightNumbers) {
+            Vector<String> flight_args = new Vector<>();
+            flight_args.add("QueryFlight");
+            flight_args.add(flightNum);
+
+            TCPCommandMessage query_flight = new TCPCommandMessage(Command.QueryFlight, flight_args);
+            writeToStream(m_flightOutputStream, query_flight);
+
+            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
+
+            int numSeats = Integer.parseInt(response.getReturn());
+            if (numSeats <= 0) {
+                System.out.println("Bundle failed, no seats for flight with ID:" + flightNum);
+                return false;
+            }
+        }
+
+        if (car) {
+            Vector<String> car_args = new Vector<>();
+            car_args.add("QueryCars");
+            car_args.add(location);
+
+            TCPCommandMessage query_car = new TCPCommandMessage(Command.QueryCars, car_args);
+            writeToStream(m_carOutputStream, query_car);
+
+            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_carInputStream.readObject();
+
+            int numCars = Integer.parseInt(response.getReturn());
+            if (numCars <= 0) {
+                System.out.println("Bundle failed, no available cars at location:" + location);
+                return false;
+            }
+        }
+
+        if (room) {
+            Vector<String> room_args = new Vector<>();
+            room_args.add("QueryRooms");
+            room_args.add(location);
+
+            TCPCommandMessage query_room = new TCPCommandMessage(Command.QueryRooms, room_args);
+            writeToStream(m_roomOutputStream, query_room);
+
+            TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_roomInputStream.readObject();
+
+            int numRooms = Integer.parseInt(response.getReturn());
+            if (numRooms <= 0) {
+                System.out.println("Bundle failed, no available rooms at location:" + location);
+                return false;
+            }
+        }
+
+        return true;
+    } 
 
     public void writeToStream(ObjectOutputStream out, Object obj) throws IOException {
         out.writeObject(obj);
