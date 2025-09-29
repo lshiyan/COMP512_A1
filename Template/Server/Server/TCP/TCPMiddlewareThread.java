@@ -177,7 +177,7 @@ public class TCPMiddlewareThread extends Thread{
                         String room_return = room_response.getReturn();
                         
                         if (!room_return.equals("")){
-                            room_bill = "Car " + room_return;
+                            room_bill = "Room " + room_return;
                         }
                         
                         String overall_bill = flight_bill + car_bill + room_bill;
