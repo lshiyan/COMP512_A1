@@ -143,7 +143,7 @@ public abstract class Client
 			case AddCustomer: {
 				checkArgumentsCount(1, arguments.size());
 
-				System.out.println("Adding a new customer:=");
+				System.out.println("Adding a new customer:");
 
 				int customer = m_resourceManager.newCustomer();
 

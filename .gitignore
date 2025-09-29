@@ -1,32 +1,46 @@
-# Compiled binaries
-*.o
-*.obj
-*.exe
-*.out
-*.app
+# Compiled Java classes
+*.class
 
-# Static libraries
-*.a
-*.lib
+# Package files
+*.jar
+*.war
+*.ear
 
-# Shared libraries
-*.so
-*.dylib
-*.dll
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.settings/
+.loadpath
+.recommenders
+
+# NetBeans
+/nbproject/private/
+/build/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
 
 # Build directories
 build/
-bin/
-obj/
 target/
-dist/
+out/
 
-# IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Log files
+*.log
 
 # OS generated files
 .DS_Store
@@ -37,9 +51,32 @@ dist/
 ehthumbs.db
 Thumbs.db
 
-# Logs
-*.log
-
 # Temporary files
 *.tmp
 *.temp
+
+# JVM crash logs
+hs_err_pid*
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.mvn/timing.properties
+
+# Gradle
+.gradle
+/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Application specific
+*.pid
+*.seed
+*.pid.lock
