@@ -6,6 +6,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 import Server.Common.Car;
@@ -125,15 +127,24 @@ public class RMIMiddleware implements IResourceManager {
 
         String customerInfo = queryCustomerInfo(customerID);
 
-        if (customerInfo == "") {
+        if (customerInfo.equals("")) {
             System.out.println("Bundle failed, customer with ID" + customerID + "doesn't exist.");
             return false;
         }
 
-        for (String flightNum : flightNumbers) {
-            int numSeats = queryFlight(Integer.parseInt(flightNum));
-            if (numSeats == 0){
-                System.out.println("Bundle failed, no seats for flight with ID:" + flightNum);
+        Map<String, Integer> seatMap = new HashMap<>();
+            for (String flightNum : flightNumbers) {
+                seatMap.put(flightNum, seatMap.getOrDefault(flightNum, 0) + 1);
+        }
+
+        for (Map.Entry<String, Integer> entry : seatMap.entrySet()) {
+            String flightNum = entry.getKey();
+            int neededSeats = entry.getValue();
+
+            int availableSeats = queryFlight(Integer.parseInt(flightNum));
+
+            if (availableSeats < neededSeats) {
+                System.out.println("Bundle failed, not enough seats for flight with ID:" + flightNum);
                 return false;
             }
         }

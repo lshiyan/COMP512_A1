@@ -4,7 +4,7 @@ all: compile-client
 	make -C ../Server/ RMIInterface.jar
 
 compile-client: ../Server/RMIInterface.jar
-	javac -cp ../Server/RMIInterface.jar Client/*.java
+	javac -cp ../Server/RMIInterface.jar Client/Client.java Client/Command.java Client/RMIClient.java
 
 clean:
 	rm -f Client/*.class
