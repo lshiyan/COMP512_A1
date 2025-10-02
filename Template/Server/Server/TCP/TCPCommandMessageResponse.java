@@ -10,6 +10,7 @@ public class TCPCommandMessageResponse implements Serializable{
     private String m_return;
 
     public TCPCommandMessageResponse(Command p_command, String p_return) {
+        m_command = p_command;
         m_return = p_return;
     }
 

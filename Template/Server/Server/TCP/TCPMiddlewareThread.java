@@ -7,6 +7,8 @@ import java.io.ObjectOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -208,6 +210,7 @@ public class TCPMiddlewareThread extends Thread{
                             
                             writeToStream(m_clientOutputStream, overall_response);
                         }
+
                         else{
 
                             for (String flightNum : flightNumbers) {
@@ -281,7 +284,16 @@ public class TCPMiddlewareThread extends Thread{
             return false;
         }
 
-        for (String flightNum : flightNumbers) {
+        Map<String, Integer> seatMap = new HashMap<>();
+            for (String flightNum : flightNumbers) {
+                seatMap.put(flightNum, seatMap.getOrDefault(flightNum, 0) + 1);
+        }
+
+        for (Map.Entry<String, Integer> entry : seatMap.entrySet()) {
+            
+            String flightNum = entry.getKey();
+            int neededSeats = entry.getValue();
+
             Vector<String> flight_args = new Vector<>();
             flight_args.add("QueryFlight");
             flight_args.add(flightNum);
@@ -292,8 +304,8 @@ public class TCPMiddlewareThread extends Thread{
             TCPCommandMessageResponse response = (TCPCommandMessageResponse) m_flightInputStream.readObject();
 
             int numSeats = Integer.parseInt(response.getReturn());
-            if (numSeats <= 0) {
-                System.out.println("Bundle failed, no seats for flight with ID:" + flightNum);
+            if (numSeats < neededSeats) {
+                System.out.println("Bundle failed, not enough seats for flight with ID:" + flightNum);
                 return false;
             }
         }
